@@ -1,13 +1,37 @@
-# Guía de Arquitectura y Agente (AGENT.md)
+# Agent Context & Guidelines - CLI Template APP
 
-Este documento detalla la estructura, patrones y arquitectura de la aplicación CLI en PHP. Sirve como referencia técnica para extender el proyecto de manera consistente.
+## Project Overview
 
----
+This is a modern PHP 8.2+ template built for CLI applications, designed to be extensible to HTTP endpoints, Twig rendering, and AI integrations (via Prism PHP).
 
-## Árbol del Proyecto y Propósito de Archivos
+## Architecture & Design Patterns
+
+- **Dependency Injection**: Managed via PHP-DI (`core/ContainerFactory.php`).
+- **Commands**: Handled by Symfony Console (`src/*/Commands/`).
+- **Database / ORM**: SQLite with raw PDO / Repository pattern (`src/*/Repositories/`).
+- **Logging**: PSR-3 Logger with Monolog (`core/LoggerService.php`).
+- **Modular Structure**: Domain code is located in `src/{DomainName}/` containing Commands, Controllers, Services, Entities, DTOs, and Repositories.
+
+## Tech Stack & Commands
+
+- **PHP**: ^8.2
+- **Testing**: `vendor/bin/phpunit`
+- **Static Analysis**: `vendor/bin/phpstan analyse`
+- **Code Style**: `vendor/bin/php-cs-fixer fix`
+- **CLI Entry Point**: `./bin/app` or `php consoles/app.php`
+
+## Rules for AI Assistants
+
+1. **Strict Typing**: Always use declare(strict_types=1); in PHP files.
+2. **Architecture Integrity**: Keep business logic inside Services/Entities, not inside Console Commands.
+3. **Dependency Injection**: Always inject dependencies via constructor using PHP-DI interfaces.
+4. **Future Extensions Roadmap**:
+    - **HTTP**: Keep Slim Framework / PSR-7 handlers inside `src/{Domain}/Controllers/`.
+    - **Twig**: Views should go into `templates/{domain}/`.
+    - **Prism PHP**: Place AI service wrappers inside `src/Shared/Services/AI/` or domain-specific services.
 
 ```bash
-cli_php_template_app/
+php_start_kit/
 ├── config/                  # Archivos de configuración PHP (devuelven arrays)
 │   ├── app.php              # Ajustes generales (zona horaria, entorno)
 │   ├── database.php         # Parámetros de conexión a SQLite/PDO
@@ -43,45 +67,4 @@ cli_php_template_app/
 ├── bootstrap.php            # Carga de Composer, variables .env y constantes globales
 ├── composer.json            # Gestión de dependencias PHP
 └── docker-compose.yml       # Definición de contenedores Docker
-```
----
-
-## Clases de la Capa `Core` y Uso Recomendado
-
-La capa `Core` provee los cimientos técnicos de la aplicación. Se deben usar mediante **Inyección de Dependencias** a través del contenedor `PHP-DI`.
-
-### 1. `Config` 🛠️
-* **Función:** Carga los archivos de `config/` y permite leer valores usando notación de puntos (ejemplo: `config->get('database.database')`).
-* **Uso:** Inyectar en cualquier servicio que necesite parámetros del archivo `.env` o configuraciones globales.
-
-### 2. `ContainerFactory` 🏗️
-* **Función:** Construye y devuelve la instancia del contenedor de dependencias (`Psr\Container\ContainerInterface`).
-* **Uso:** Se llama principalmente en `consoles/app.php` para instanciar comandos y servicios con sus dependencias resueltas automáticamente.
-
-### 3. `Database` 🗄️
-* **Función:** Administra la conexión `PDO` a SQLite asegurando una única instancia y aplicando el esquema inicial si no existe la tabla.
-* **Uso:** Inyectar exclusivamente dentro de las clases `Repository`.
-
-### 4. `LoggerService` 📋
-* **Función:** Encapsula **Monolog** para escribir logs en la carpeta de almacenamiento.
-* **Uso:** Inyectar en servicios para registrar errores o eventos relevantes (`$logger->info(...)`, `$logger->error(...)`).
-
-### 5. `Scheduler` y `Kernel` ⏱️
-* **Función:** `Kernel` define la programación de comandos (frecuencia tipo Cron) y `Scheduler` evalúa y ejecuta las tareas pendientes.
-* **Uso:** Modificar `Kernel::schedule()` para añadir nuevos comandos que deban ejecutarse periódicamente.
-
----
-
-## Guía: Cómo Implementar un Nuevo Dominio en `src/`
-
-Para agregar un nuevo dominio (por ejemplo, `Projects`), sigue la arquitectura por capas presente en `src/Tasks/`:
-
-1. **Entidad (`src/Projects/Entities/Project.php`):** Define la clase que representa el modelo con sus propiedades y tipos.
-2. **DTO (`src/Projects/DTOs/CreateProjectData.php`):** Crea un objeto inmutable (`readonly`) para transportar y validar los datos de entrada.
-3. **Repositorio (`src/Projects/Repositories/ProjectRepository.php`):** Recibe `Core\Database` en el constructor e implementa las consultas SQL mediante *Prepared Statements* de PDO.
-4. **Servicio (`src/Projects/Services/ProjectService.php`):** Encapsula las reglas de negocio e interactúa con el repositorio y servicios compartidos (como `LoggerService` o `TelegramService`).
-5. **Comando CLI (`src/Projects/Commands/CreateProjectCommand.php`):** Extiende de `Symfony\Component\Console\Command\Command`, usa la anotación `#[AsCommand]` e inyecta el servicio de negocio.
-6. **Registro en CLI:** Registra el nuevo comando en `consoles/app.php` agregándolo al contenedor:
-```php
-$application->addCommand($container->get(\App\Projects\Commands\CreateProjectCommand::class));
 ```
